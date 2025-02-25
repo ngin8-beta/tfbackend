@@ -1,38 +1,72 @@
 package main
 
 import (
-    "bytes"
-    "os"
-    "testing"
+	"os"
+	"testing"
 
-    "github.com/spf13/viper"
+	"github.com/spf13/viper"
 )
 
-func TestExecuteNoArgs(t *testing.T) {
-    buf := new(bytes.Buffer)
-    rootCmd.SetOut(buf)
-    rootCmd.SetErr(buf)
+func TestInitConfigNoCfgFile(t *testing.T) {
+    // Arrange
+    cfgFile = ""
 
-    os.Args = []string{"tfbackend"}
+    // Act
+    initConfig()
 
-    if err := Execute(); err != nil {
-        t.Fatalf("rootCmd.Execute() failed: %v", err)
-    }
-
-    output := buf.String()
-    if len(output) == 0 {
-        t.Fatalf("Expected output, got none")
+    // Assert
+    if viper.GetString("listen_addr") != ":8080" {
+        t.Fatalf("Expected listen_addr to be :8080, got %s", viper.GetString("listen_addr"))
     }
 }
 
-func TestConfigInitialization(t *testing.T) {
-    cfgFile = ""
-    os.Clearenv()
-    os.Setenv("HOME", "/tmp")
+func TestInitConfigSetCfgFile(t *testing.T) {
+    // Arrange
+    cfgFile = "/tmp/.tfbackend.yml"
+    cfgFileContent := "listen_addr: :3000\n"
+    if err := os.WriteFile(cfgFile, []byte(cfgFileContent), 0644); err != nil {
+        t.Fatalf("Failed to write file: %v", err)
+    }
+    defer os.Remove(cfgFile)
 
+    // Act
     initConfig()
 
-    if viper.GetString("listen_addr") != ":8080" {
-        t.Fatalf("Expected listen_addr to be :8080, got %s", viper.GetString("listen_addr"))
+    // Assert
+    if viper.GetString("listen_addr") != ":3000" {
+        t.Fatalf("Expected listen_addr to be :3000, got %s", viper.GetString("listen_addr"))
+    }
+}
+
+func TestInitConfigSetEnvListenAddr(t *testing.T) {
+    // Arrange
+    os.Setenv("TFBACKEND_LISTEN_ADDR", ":4000")
+
+    // Act
+    initConfig()
+
+    // Assert
+    if viper.GetString("listen_addr") != ":4000" {
+        t.Fatalf("Expected listen_addr to be :4000, got %s", viper.GetString("listen_addr"))
+    }
+}
+
+func TestInitConfigSetCfgFileAndEnvListenAddr(t *testing.T) {
+    // Arrange
+    cfgFile = "/tmp/.tfbackend.yml"
+    cfgFileContent := "listen_addr: :3000\n"
+    if err := os.WriteFile(cfgFile, []byte(cfgFileContent), 0644); err != nil {
+        t.Fatalf("Failed to write file: %v", err)
+    }
+    defer os.Remove(cfgFile)
+
+    os.Setenv("TFBACKEND_LISTEN_ADDR", ":4000")
+
+    // Act
+    initConfig()
+
+    // Assert
+    if viper.GetString("listen_addr") != ":4000" {
+        t.Fatalf("Expected listen_addr to be :4000, got %s", viper.GetString("listen_addr"))
     }
 }

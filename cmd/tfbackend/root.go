@@ -1,11 +1,13 @@
 package main
 
 import (
-    "os"
-    "log/slog"
+	"log/slog"
+	"os"
 
-    "github.com/spf13/cobra"
-    "github.com/spf13/viper"
+	internalServer "github.com/ngin8-beta/tfbackend/internal/server"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -14,6 +16,7 @@ var rootCmd = &cobra.Command{
     Use:   "tfbackend",
     Short: "Terraform state backend server",
     Long:  "tfbackend is an HTTP server that provides Terraform state management and locking mechanisms. It offers flexible configuration through environment variables and configuration files, making it highly operable.",
+	Run: runServer,
 }
 
 func Execute() error {
@@ -23,8 +26,8 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Path to the configuration file (e.g., $HOME/.tfbackend.yaml)")
-	rootCmd.PersistentFlags().String("listen_addr", ":8080", "The address the server listens on.")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Path to the configuration file (e.g., $HOME/.tfbackend.yaml)")
+	rootCmd.PersistentFlags().StringP("listen_addr", "l", ":8080", "The address the server listens on.")
 
 	if err := viper.BindPFlag("listen_addr", rootCmd.PersistentFlags().Lookup("listen_addr")); err != nil {
 		slog.Error("listen_addr Failed to bind the flag.", "error", err)
@@ -33,10 +36,7 @@ func init() {
 }
 
 func initConfig() {
-	if cfgFile != "" {
-        // Use the configuration file specified on the command line.
-		viper.SetConfigFile(cfgFile)
-	} else {
+	if cfgFile == "" {
 		// Use .tfbackend.yaml in the home directory as the default configuration file.
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -46,6 +46,9 @@ func initConfig() {
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".tfbackend")
+	} else {
+        // Use the configuration file specified on the command line.
+		viper.SetConfigFile(cfgFile)
 	}
 
     // Environmet variables are prefixed with TFBACKEND_.
@@ -56,5 +59,18 @@ func initConfig() {
 		slog.Info("Configuration file loaded.", "file", viper.ConfigFileUsed())
 	} else {
 		slog.Info("Configuration file not found. Using default settings and environment variables.")
+	}
+}
+
+func runServer(cmd *cobra.Command, args []string) {
+	listenAddr := viper.GetString("listen_addr")
+
+	slog.Info("Starting the tfbackend server...", "listen_addr", listenAddr)
+
+	srv := internalServer.NewServer(listenAddr)
+
+	if err := srv.Run(); err != nil {
+		slog.Error("Failed to start the tfbackend server.", "error", err)
+		os.Exit(1)
 	}
 }
