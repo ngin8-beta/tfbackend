@@ -72,7 +72,7 @@ func (ls *LocalStorage) PostState(project string, state map[string]interface{}) 
 }
 
 // getFilePath constructs the file path for saving based on the project name.
-// Example: <basePath>/<project>/terraform.state
+// Example: <basePath>/<project>/terraform.tfstate
 func (ls *LocalStorage) getFilePath(project string) string {
-	return filepath.Join(ls.basePath, project, "terraform.state")
+	return filepath.Join(ls.basePath, project, "terraform.tfstate")
 }

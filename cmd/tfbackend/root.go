@@ -29,7 +29,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Path to the configuration file (e.g., $HOME/.tfbackend.yaml)")
 	rootCmd.PersistentFlags().StringP("listen_port", "p", "8080", "The port to listen on.")
 	rootCmd.PersistentFlags().StringP("storage", "s", "local", "The storage backend to use .")
-	rootCmd.PersistentFlags().StringP("storage_local_dir", "d", "tfbackend", "The path to the local storage directory. (Required for the local storage backend)")
+
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		slog.Error("Failed to retrieve the home directory.", "error", err)
+		os.Exit(1)
+	}
+	rootCmd.PersistentFlags().StringP("storage_local_dir", "d", homedir + "/tfstate", "The path to the local storage directory. (Required for the local storage backend)")
 
 
 	if err := viper.BindPFlag("listen_port", rootCmd.PersistentFlags().Lookup("listen_port")); err != nil {
