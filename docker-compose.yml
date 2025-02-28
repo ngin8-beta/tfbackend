@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  tfbackend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - tfbackend_data:/data
+    environment:
+      - TFBACKEND_STORAGE_LOCAL_DIR=/data
+
+volumes:
+  tfbackend_data:

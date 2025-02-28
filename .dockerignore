@@ -1,0 +1,5 @@
+.github/**/*
+.gitignore
+docker-compose.yml
+LICENSE
+README.md

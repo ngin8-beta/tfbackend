@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -21,16 +22,6 @@ func NewLocalStorage(basePath string) (*LocalStorage, error) {
 		return nil, err
 	}
 	return &LocalStorage{basePath: basePath}, nil
-}
-
-// getFilePath constructs the file path for saving based on the project name.
-// Example: <basePath>/<project>/state.json
-func (ls *LocalStorage) getFilePath(project string) string {
-	return filepath.Join(ls.basePath, project, "state.json")
-}
-
-func (ls *LocalStorage) GetName() string {
-	return "LocalFileSystem"
 }
 
 func (ls *LocalStorage) GetState(project string) (map[string]interface{}, error) {
@@ -53,17 +44,35 @@ func (ls *LocalStorage) PostState(project string, state map[string]interface{}) 
 	filePath := ls.getFilePath(project)
 	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal state to JSON: %w", err)
 	}
-	return os.WriteFile(filePath, data, 0644)
+
+	// Backup the existing file if it exists.
+	if _, err := os.Stat(filePath); err == nil {
+		if err := os.Rename(filePath, filePath+".backup"); err != nil {
+			return fmt.Errorf("failed to backup existing file: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to check if file exists: %w", err)
+	}
+
+	// Writes to a temporary file and performs atomic updates.
+	tmpFilePath := filePath + ".tmp"
+	if err := os.WriteFile(tmpFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+	if err := os.Rename(tmpFilePath, filePath); err != nil {
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+	return nil
 }
 
-func (ls *LocalStorage) DeleteState(project string) error {
-	filePath := ls.getFilePath(project)
-	return os.Remove(filePath)
+// getFilePath constructs the file path for saving based on the project name.
+// Example: <basePath>/<project>/terraform.state
+func (ls *LocalStorage) getFilePath(project string) string {
+	return filepath.Join(ls.basePath, project, "terraform.state")
 }
-
