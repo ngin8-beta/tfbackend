@@ -12,7 +12,7 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(addr string) *Server {
+func NewServer(port string) *Server {
 	storage, err := GetStorage()
 	if err != nil {
 		log.Fatalf("failed to get storage: %v", err)
@@ -21,13 +21,12 @@ func NewServer(addr string) *Server {
 	r := gin.Default()
 	r.GET("/:project/state", GetStateHundler(storage))
 	r.POST("/:project/state", PostStateHundler(storage))
-	r.DELETE("/:project/state", DeleteStateHundler(storage))
 	r.Handle("LOCK", "/:project/state", LockStateHundler)
 	r.Handle("UNLOCK", "/:project/state", UnlockStateHundler)
 	r.NoRoute(NoRouteStateHundler)
 
 	srv := &http.Server{
-		Addr:    addr,
+		Addr:    ":" + port,
 		Handler: r,
 	}
 	return &Server{httpServer: srv}
@@ -56,12 +55,6 @@ func PostStateHundler(storage storage.Storage) gin.HandlerFunc {
 			return
 		}
 		storage.PostState(c.Param("project"), state)
-	}
-}
-
-func DeleteStateHundler(storage storage.Storage) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		storage.DeleteState(c.Param("project"))
 	}
 }
 
